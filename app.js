@@ -9,7 +9,7 @@ const xss = require('xss-clean');
 const rateLimiter = require('express-rate-limit');
 
 // swagger
-const swagger = require('swagger-ui-express');
+const swaggerUI = require('swagger-ui-express');
 const YAML = require('yamljs');
 const swaggerDocument = YAML.load('./swagger.yaml');
 
@@ -29,7 +29,7 @@ const authenticateUser = require('./middleware/authentication');
 
 app.set('trust proxy', 1);
 app.use(rateLimiter({
-  windowsMs: 15 * 60 * 1000,
+  windowMs: 15 * 60 * 1000,
   max: 100,
 }));
 app.use(express.json());
