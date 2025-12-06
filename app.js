@@ -34,7 +34,18 @@ app.use(rateLimiter({
   max: 100,
 }));
 app.use(express.json());
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "validator.swagger.io"],
+      },
+    },
+  })
+);
 app.use(cors());
 app.use(xss());
 // extra packages
