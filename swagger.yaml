@@ -1,0 +1,643 @@
+openapi: 3.0.0
+info:
+  title: Jobs API
+  version: 1.0.0
+  description: |
+    A comprehensive REST API for managing job listings with secure JWT-based authentication.
+    
+    ## Features
+    - Secure user registration and authentication
+    - Create, read, update, and delete job listings
+    - User-specific job management
+    - JWT token-based authorization
+    
+    ## Authentication
+    Most endpoints require a valid JWT token obtained through registration or login.
+    Include the token in the Authorization header as: `Bearer <token>`
+  contact:
+    name: API Support
+    email: support@jobsapi.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://jobs-api-liart.vercel.app/api/v1
+    description: Production Server
+  - url: http://localhost:3000/api/v1
+    description: Development Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication token obtained from registration or login
+  
+  schemas:
+    UserRegistration:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: User's full name
+          example: Anna Smith
+        email:
+          type: string
+          format: email
+          description: Valid email address for user account
+          example: anna@gmail.com
+        password:
+          type: string
+          format: password
+          minLength: 6
+          description: Account password (minimum 6 characters)
+          example: secret123
+    
+    UserLogin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's registered email address
+          example: anna@gmail.com
+        password:
+          type: string
+          format: password
+          description: User's account password
+          example: secret123
+    
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            name:
+              type: string
+              example: Anna Smith
+        token:
+          type: string
+          description: JWT access token for authenticated requests
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTMyODBjMmUwMDJiNDM2ODIxZTQwZjAiLCJuYW1lIjoiYW5uYSIsImlhdCI6MTczMzQ1MDQwMCwiZXhwIjoxNzM2MDQyNDAwfQ.example
+    
+    JobCreate:
+      type: object
+      required:
+        - company
+        - position
+      properties:
+        company:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Name of the company offering the job
+          example: Netflix
+        position:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Job title or position
+          example: Senior Backend Developer
+        status:
+          type: string
+          enum: [pending, interview, declined, accepted]
+          default: pending
+          description: Current status of the job application
+          example: pending
+    
+    JobUpdate:
+      type: object
+      properties:
+        company:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Name of the company offering the job
+          example: Netflix
+        position:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Job title or position
+          example: Full Stack Developer
+        status:
+          type: string
+          enum: [pending, interview, declined, accepted]
+          description: Current status of the job application
+          example: interview
+    
+    JobResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique identifier for the job
+          example: 6932d53bc1ae2745078d70e5
+        company:
+          type: string
+          description: Company name
+          example: Netflix
+        position:
+          type: string
+          description: Job position
+          example: Senior Backend Developer
+        status:
+          type: string
+          enum: [pending, interview, declined, accepted]
+          description: Application status
+          example: pending
+        createdBy:
+          type: string
+          description: ID of the user who created this job
+          example: 693280c2e002b436821e40f0
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the job was created
+          example: 2024-12-06T10:30:00.000Z
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the job was last updated
+          example: 2024-12-06T15:45:00.000Z
+    
+    JobsListResponse:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobResponse'
+        count:
+          type: integer
+          description: Total number of jobs returned
+          example: 5
+    
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: Job deleted successfully
+    
+    Error:
+      type: object
+      properties:
+        msg:
+          type: string
+          description: Error message describing what went wrong
+          example: Invalid credentials
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      description: |
+        Create a new user account with name, email, and password.
+        Returns a JWT token upon successful registration.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+            examples:
+              newUser:
+                summary: New user registration
+                value:
+                  name: Anna Smith
+                  email: anna@gmail.com
+                  password: secret123
+      responses:
+        '201':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              examples:
+                success:
+                  summary: Successful registration
+                  value:
+                    user:
+                      name: Anna Smith
+                    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTMyODBjMmUwMDJiNDM2ODIxZTQwZjAiLCJuYW1lIjoiYW5uYSIsImlhdCI6MTczMzQ1MDQwMCwiZXhwIjoxNzM2MDQyNDAwfQ.example
+        '400':
+          description: Bad request - validation error or duplicate email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateEmail:
+                  summary: Email already exists
+                  value:
+                    msg: Email already exists
+                validationError:
+                  summary: Validation error
+                  value:
+                    msg: Please provide name, email and password
+  
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login user
+      description: |
+        Authenticate an existing user with email and password.
+        Returns a JWT token upon successful authentication.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+            examples:
+              existingUser:
+                summary: User login
+                value:
+                  email: anna@gmail.com
+                  password: secret123
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              examples:
+                success:
+                  summary: Successful login
+                  value:
+                    user:
+                      name: Anna Smith
+                    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTMyODBjMmUwMDJiNDM2ODIxZTQwZjAiLCJuYW1lIjoiYW5uYSIsImlhdCI6MTczMzQ1MDQwMCwiZXhwIjoxNzM2MDQyNDAwfQ.example
+        '401':
+          description: Unauthorized - invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidCredentials:
+                  summary: Invalid email or password
+                  value:
+                    msg: Invalid credentials
+        '400':
+          description: Bad request - missing email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    msg: Please provide email and password
+  
+  /jobs:
+    post:
+      tags:
+        - Jobs
+      summary: Create a new job
+      description: |
+        Create a new job listing for the authenticated user.
+        Requires valid JWT token in Authorization header.
+      operationId: createJob
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobCreate'
+            examples:
+              newJob:
+                summary: Create backend developer position
+                value:
+                  company: Netflix
+                  position: Senior Backend Developer
+                  status: pending
+      responses:
+        '201':
+          description: Job successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+              examples:
+                created:
+                  summary: Job created successfully
+                  value:
+                    _id: 6932d53bc1ae2745078d70e5
+                    company: Netflix
+                    position: Senior Backend Developer
+                    status: pending
+                    createdBy: 693280c2e002b436821e40f0
+                    createdAt: 2024-12-06T10:30:00.000Z
+                    updatedAt: 2024-12-06T10:30:00.000Z
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingFields:
+                  summary: Validation error
+                  value:
+                    msg: Company and position fields are required
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                noToken:
+                  summary: No authentication token
+                  value:
+                    msg: Authentication invalid
+    
+    get:
+      tags:
+        - Jobs
+      summary: Get all jobs
+      description: |
+        Retrieve all job listings created by the authenticated user.
+        Returns an array of jobs with total count.
+      operationId: getAllJobs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of jobs successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobsListResponse'
+              examples:
+                jobsList:
+                  summary: User's job listings
+                  value:
+                    jobs:
+                      - _id: 6932d53bc1ae2745078d70e5
+                        company: Netflix
+                        position: Senior Backend Developer
+                        status: pending
+                        createdBy: 693280c2e002b436821e40f0
+                        createdAt: 2024-12-06T10:30:00.000Z
+                        updatedAt: 2024-12-06T10:30:00.000Z
+                      - _id: 6932d549c1ae2745078d70e7
+                        company: Google
+                        position: Frontend Engineer
+                        status: interview
+                        createdBy: 693280c2e002b436821e40f0
+                        createdAt: 2024-12-05T14:20:00.000Z
+                        updatedAt: 2024-12-06T09:15:00.000Z
+                    count: 2
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                unauthorized:
+                  summary: Invalid token
+                  value:
+                    msg: Authentication invalid
+  
+  /jobs/{id}:
+    get:
+      tags:
+        - Jobs
+      summary: Get a single job
+      description: |
+        Retrieve a specific job by its ID.
+        User can only access jobs they have created.
+      operationId: getJobById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the job
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+          example: 6932d53bc1ae2745078d70e5
+      responses:
+        '200':
+          description: Job details successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+              examples:
+                jobDetails:
+                  summary: Job information
+                  value:
+                    _id: 6932d53bc1ae2745078d70e5
+                    company: Netflix
+                    position: Senior Backend Developer
+                    status: pending
+                    createdBy: 693280c2e002b436821e40f0
+                    createdAt: 2024-12-06T10:30:00.000Z
+                    updatedAt: 2024-12-06T10:30:00.000Z
+        '404':
+          description: Job not found or user doesn't have access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notFound:
+                  summary: Job not found
+                  value:
+                    msg: No job with id 6932d53bc1ae2745078d70e5
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                unauthorized:
+                  summary: Invalid authentication
+                  value:
+                    msg: Authentication invalid
+    
+    patch:
+      tags:
+        - Jobs
+      summary: Update a job
+      description: |
+        Update an existing job's details.
+        User can only update jobs they have created.
+      operationId: updateJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the job to update
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+          example: 6932d549c1ae2745078d70e7
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobUpdate'
+            examples:
+              updatePosition:
+                summary: Update job position and status
+                value:
+                  company: Netflix
+                  position: Full Stack Developer
+                  status: interview
+      responses:
+        '200':
+          description: Job successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+              examples:
+                updated:
+                  summary: Updated job details
+                  value:
+                    _id: 6932d549c1ae2745078d70e7
+                    company: Netflix
+                    position: Full Stack Developer
+                    status: interview
+                    createdBy: 693280c2e002b436821e40f0
+                    createdAt: 2024-12-05T14:20:00.000Z
+                    updatedAt: 2024-12-06T15:45:00.000Z
+        '404':
+          description: Job not found or user doesn't have access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notFound:
+                  summary: Job not found
+                  value:
+                    msg: No job with id 6932d549c1ae2745078d70e7
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidData:
+                  summary: Invalid job data
+                  value:
+                    msg: Company or position fields cannot be empty
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                unauthorized:
+                  summary: Invalid token
+                  value:
+                    msg: Authentication invalid
+    
+    delete:
+      tags:
+        - Jobs
+      summary: Delete a job
+      description: |
+        Permanently delete a job listing.
+        User can only delete jobs they have created.
+      operationId: deleteJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the job to delete
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+          example: 6932d549c1ae2745078d70e7
+      responses:
+        '200':
+          description: Job successfully deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                deleted:
+                  summary: Job deleted
+                  value:
+                    message: Job deleted successfully
+        '404':
+          description: Job not found or user doesn't have access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notFound:
+                  summary: Job not found
+                  value:
+                    msg: No job with id 6932d549c1ae2745078d70e7
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                unauthorized:
+                  summary: Invalid authentication
+                  value:
+                    msg: Authentication invalid
+
+tags:
+  - name: Auth
+    description: |
+      Authentication endpoints for user registration and login.
+      These endpoints are public and do not require authentication.
+      Successful authentication returns a JWT token for use in protected endpoints.
+  
+  - name: Jobs
+    description: |
+      Job management endpoints for creating, reading, updating, and deleting job listings.
+      All endpoints in this section require JWT authentication via Bearer token.
+      Users can only manage their own job listings.
+
+externalDocs:
+  description: Find more information about the Jobs API
+  url: https://jobs-api-liart.vercel.app/api-docs
